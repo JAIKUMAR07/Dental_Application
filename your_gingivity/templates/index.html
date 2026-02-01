@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gingivitis Detection</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      body {
+        font-family: "Arial", sans-serif;
+      }
+      .gradient-bg {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      }
+      .healthy-bg {
+        background: #d1fae5;
+        border-left: 4px solid #10b981;
+      }
+      .gingivitis-bg {
+        background: #fee2e2;
+        border-left: 4px solid #ef4444;
+      }
+      .error-bg {
+        background: #fef3c7;
+        border-left: 4px solid #f59e0b;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-100">
+    <div class="min-h-screen">
+      <!-- Header -->
+      <div class="gradient-bg text-white p-4 shadow-lg">
+        <div class="max-w-6xl mx-auto">
+          <h1 class="text-2xl font-bold">🦷 Gingivitis Detection AI</h1>
+          <p class="text-sm opacity-90">Upload dental images for analysis</p>
+          {% if not model_loaded %}
+          <div
+            class="mt-2 bg-yellow-500 text-white text-xs px-3 py-1 rounded inline-block"
+          >
+            ⚠️ Using Test Model
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Main Content -->
+      <div class="max-w-4xl mx-auto p-4">
+        <!-- Upload Card -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+          <h2 class="text-xl font-bold text-gray-800 mb-4">Upload Image</h2>
+
+          <form
+            action="/predict"
+            method="post"
+            enctype="multipart/form-data"
+            class="space-y-4"
+          >
+            <div
+              class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition"
+            >
+              <input
+                type="file"
+                id="fileInput"
+                name="file"
+                accept="image/*"
+                class="hidden"
+                onchange="showFileName()"
+              />
+              <div class="text-gray-500 mb-4">
+                <svg
+                  class="w-12 h-12 mx-auto text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                  ></path>
+                </svg>
+                <p class="mt-2">Click to select an image</p>
+                <p class="text-sm">JPG, PNG (max 10MB)</p>
+              </div>
+              <button
+                type="button"
+                onclick="document.getElementById('fileInput').click()"
+                class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+              >
+                Choose File
+              </button>
+              <div
+                id="fileName"
+                class="mt-2 text-sm text-blue-600 hidden"
+              ></div>
+            </div>
+
+            <button
+              type="submit"
+              class="w-full gradient-bg hover:opacity-90 text-white font-bold py-3 rounded-lg"
+            >
+              🔍 Analyze Image
+            </button>
+          </form>
+        </div>
+
+        <!-- Results -->
+        {% if result %}
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+          <h2 class="text-xl font-bold text-gray-800 mb-4">Analysis Results</h2>
+
+          <div class="grid md:grid-cols-2 gap-6">
+            <!-- Image Preview -->
+            <div>
+              <div class="bg-gray-50 p-4 rounded-lg">
+                <h3 class="font-bold text-gray-700 mb-2">Uploaded Image</h3>
+                <img
+                  src="{{ image_url }}"
+                  alt="Uploaded"
+                  class="w-full rounded-lg"
+                />
+                <p class="text-sm text-gray-600 mt-2">{{ result.filename }}</p>
+              </div>
+            </div>
+
+            <!-- Prediction -->
+            <div>
+              <div
+                class="p-4 rounded-lg {% if result.prediction == 'Healthy' %}healthy-bg{% elif result.prediction == 'Gingivitis' %}gingivitis-bg{% else %}error-bg{% endif %}"
+              >
+                <div class="flex justify-between items-center mb-4">
+                  <div>
+                    <h3 class="text-2xl font-bold">{{ result.prediction }}</h3>
+                    <p class="text-gray-700">{{ result.interpretation }}</p>
+                  </div>
+                  <div class="text-right">
+                    <div class="text-3xl font-bold">
+                      {{ result.confidence }}%
+                    </div>
+                    <div class="text-sm">Confidence</div>
+                  </div>
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="mb-4">
+                  <div class="flex justify-between text-sm mb-1">
+                    <span>Healthy: {{ result.healthy_probability }}%</span>
+                    <span
+                      >Gingivitis: {{ result.gingivitis_probability }}%</span
+                    >
+                  </div>
+                  <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      class="h-full bg-gradient-to-r from-green-400 to-red-500"
+                      style="width: {{ result.gingivitis_probability }}%"
+                    ></div>
+                  </div>
+                </div>
+
+                <!-- Details -->
+                <div class="grid grid-cols-2 gap-3 text-sm">
+                  <div class="bg-white/50 p-2 rounded">
+                    <div class="font-semibold">Processing Time</div>
+                    <div>{{ result.processing_time_ms }} ms</div>
+                  </div>
+                  <div class="bg-white/50 p-2 rounded">
+                    <div class="font-semibold">Raw Score</div>
+                    <div>{{ result.raw_probability }}</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Recommendation -->
+              <div
+                class="mt-4 p-4 {% if result.prediction == 'Gingivitis' %}bg-red-50 text-red-800{% else %}bg-green-50 text-green-800{% endif %} rounded-lg"
+              >
+                <div class="font-bold mb-1">
+                  {% if result.prediction == 'Gingivitis' %} ⚠️ Recommendation:
+                  {% else %} ✅ Recommendation: {% endif %}
+                </div>
+                <div class="text-sm">
+                  {% if result.prediction == 'Gingivitis' %} Possible gingivitis
+                  detected. Please consult a dental professional. {% else %}
+                  Appears healthy. Maintain good oral hygiene. {% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Clear Button -->
+          <div class="mt-6 text-center">
+            <button
+              onclick="clearResults()"
+              class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded"
+            >
+              Clear Results
+            </button>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Error -->
+        {% if error %}
+        <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <div class="flex">
+            <div class="text-red-500 mr-3">⚠️</div>
+            <div>
+              <h3 class="font-bold text-red-800">Error</h3>
+              <p class="text-red-700">{{ error }}</p>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Info -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h3 class="font-bold text-blue-800 mb-2">ℹ️ About This Tool</h3>
+          <p class="text-gray-700 mb-3">
+            This tool uses AI to analyze dental images for signs of gingivitis.
+          </p>
+          <div class="text-sm text-gray-600">
+            <p class="mb-1">• Upload JPG or PNG images</p>
+            <p class="mb-1">• Maximum file size: 10MB</p>
+            <p class="mb-1">• Results show confidence scores</p>
+            <p class="mt-3 text-xs text-gray-500">
+              ⚕️ This is for educational purposes only. Always consult a
+              dentist.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="mt-8 p-4 bg-gray-800 text-white text-center">
+        <p class="text-sm">
+          Gingivitis Detection AI • CPU Optimized • {{ "Real" if model_loaded
+          else "Test" }} Model
+        </p>
+      </div>
+    </div>
+
+    <script>
+      function showFileName() {
+        const input = document.getElementById("fileInput");
+        const fileNameDiv = document.getElementById("fileName");
+
+        if (input.files.length > 0) {
+          fileNameDiv.textContent = "Selected: " + input.files[0].name;
+          fileNameDiv.classList.remove("hidden");
+        }
+      }
+
+      function clearResults() {
+        window.location.href = "/";
+      }
+
+      // Auto-focus file input when clicking upload area
+      document.addEventListener("DOMContentLoaded", function () {
+        console.log("Application loaded successfully");
+      });
+    </script>
+  </body>
+</html>
