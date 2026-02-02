@@ -1,0 +1,794 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ title }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <style>
+      .gradient-bg {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      }
+      .dental-gradient {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      }
+      .gingivitis-gradient {
+        background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+      }
+      .caries-bg {
+        background: linear-gradient(135deg, #ff6b6b20, #ff6b6b40);
+      }
+      .calculus-bg {
+        background: linear-gradient(135deg, #ffa50020, #ffa50040);
+      }
+      .healthy-bg {
+        background: linear-gradient(135deg, #51cf6620, #51cf6640);
+      }
+      .discoloration-bg {
+        background: linear-gradient(135deg, #4ecdc420, #4ecdc440);
+      }
+      .upload-area {
+        border: 2px dashed #cbd5e1;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+      }
+      .upload-area:hover {
+        border-color: #667eea;
+        background-color: #f8fafc;
+      }
+      .disease-card {
+        transition: all 0.3s ease;
+        border-left: 4px solid;
+      }
+      .model-selector {
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+      .model-selector:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+      }
+      .model-selector.selected {
+        border: 3px solid #667eea;
+        box-shadow: 0 0 20px rgba(102, 126, 234, 0.3);
+      }
+      .progress-ring {
+        transform: rotate(-90deg);
+        transform-origin: 50% 50%;
+      }
+      .chart-bar {
+        transition: width 0.5s ease-in-out;
+      }
+    </style>
+  </head>
+  <body class="bg-gradient-to-br from-blue-50 to-purple-50 min-h-screen">
+    <!-- Header -->
+    <header class="gradient-bg text-white shadow-xl">
+      <div class="container mx-auto px-4 py-6">
+        <div class="flex flex-col md:flex-row justify-between items-center">
+          <div>
+            <h1 class="text-3xl font-bold">
+              <i class="fas fa-tooth mr-3"></i>Dental & Gum Disease Classifier
+            </h1>
+            <p class="text-gray-200 mt-2">
+              AI-powered detection with dual model selection
+            </p>
+          </div>
+          <div class="mt-4 md:mt-0 flex gap-2">
+            {% if not dental_model_loaded %}
+            <span
+              class="bg-yellow-500 text-white px-3 py-1 rounded-full text-sm font-bold"
+            >
+              <i class="fas fa-exclamation-triangle mr-1"></i>Dental: Test Mode
+            </span>
+            {% endif %} {% if not gingivitis_model_loaded %}
+            <span
+              class="bg-yellow-500 text-white px-3 py-1 rounded-full text-sm font-bold"
+            >
+              <i class="fas fa-exclamation-triangle mr-1"></i>Gum: Test Mode
+            </span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-8 max-w-6xl">
+      <!-- Model Selection -->
+      <div class="mb-8">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4 text-center">
+          <i class="fas fa-brain mr-2"></i>Select Analysis Type
+        </h2>
+        <div class="grid md:grid-cols-2 gap-6">
+          <!-- Dental Disease Model -->
+          <div
+            id="dental-selector"
+            class="model-selector bg-white rounded-2xl shadow-lg p-6 selected"
+            onclick="selectModel('dental')"
+          >
+            <div class="dental-gradient text-white rounded-xl p-4 mb-4">
+              <div class="flex justify-between items-center">
+                <div>
+                  <h3 class="text-2xl font-bold">Teeth Disease</h3>
+                  <p class="text-sm opacity-90">4-Class Detection</p>
+                </div>
+                <div class="text-4xl">🦷</div>
+              </div>
+            </div>
+            <div class="space-y-2">
+              {% for info in dental_class_info %}
+              <div class="flex items-center text-sm">
+                <span class="mr-2">{{ info.icon }}</span>
+                <span class="font-medium">{{ info.name }}</span>
+              </div>
+              {% endfor %}
+            </div>
+            <div class="mt-4 pt-4 border-t">
+              <p class="text-xs text-gray-600">
+                Detects caries, calculus, healthy teeth, and discoloration
+              </p>
+            </div>
+          </div>
+
+          <!-- Gingivitis Model -->
+          <div
+            id="gingivitis-selector"
+            class="model-selector bg-white rounded-2xl shadow-lg p-6"
+            onclick="selectModel('gingivitis')"
+          >
+            <div class="gingivitis-gradient text-white rounded-xl p-4 mb-4">
+              <div class="flex justify-between items-center">
+                <div>
+                  <h3 class="text-2xl font-bold">Gum Disease</h3>
+                  <p class="text-sm opacity-90">2-Class Detection</p>
+                </div>
+                <div class="text-4xl">🩺</div>
+              </div>
+            </div>
+            <div class="space-y-2">
+              {% for info in gingivitis_class_info %}
+              <div class="flex items-center text-sm">
+                <span class="mr-2">{{ info.icon }}</span>
+                <span class="font-medium">{{ info.name }}</span>
+              </div>
+              {% endfor %}
+            </div>
+            <div class="mt-4 pt-4 border-t">
+              <p class="text-xs text-gray-600">
+                Analyzes gum health and detects gingivitis
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Upload Section -->
+      <div class="bg-white rounded-2xl shadow-xl p-6 mb-8">
+        <h2 class="text-2xl font-bold text-gray-800 mb-6">
+          <i class="fas fa-cloud-upload-alt mr-2"></i>Upload Image
+        </h2>
+
+        <!-- Tabs -->
+        <div class="mb-6">
+          <div class="border-b border-gray-200">
+            <nav class="flex space-x-8">
+              <button
+                id="single-tab"
+                onclick="switchTab('single')"
+                class="py-3 px-1 font-medium text-lg border-b-2 border-blue-500 text-blue-600"
+              >
+                <i class="fas fa-image mr-2"></i>Single Image
+              </button>
+              <button
+                id="batch-tab"
+                onclick="switchTab('batch')"
+                class="py-3 px-1 font-medium text-lg border-b-2 border-transparent text-gray-500"
+              >
+                <i class="fas fa-layer-group mr-2"></i>Batch Analysis
+              </button>
+            </nav>
+          </div>
+        </div>
+
+        <!-- Current Model Display -->
+        <div class="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <div class="flex items-center">
+            <i class="fas fa-info-circle text-blue-600 mr-2"></i>
+            <span class="text-sm font-medium text-blue-800">
+              Selected Model:
+              <span id="current-model-display" class="font-bold"
+                >Teeth Disease (4 classes)</span
+              >
+            </span>
+          </div>
+        </div>
+
+        <!-- Single Upload -->
+        <div id="single-section">
+          <form
+            action="/predict"
+            method="post"
+            enctype="multipart/form-data"
+            class="space-y-6"
+          >
+            <input
+              type="hidden"
+              id="model-type-single"
+              name="model_type"
+              value="dental"
+            />
+
+            <div
+              class="upload-area p-8 text-center cursor-pointer"
+              onclick="document.getElementById('singleFile').click()"
+            >
+              <input
+                type="file"
+                id="singleFile"
+                name="file"
+                accept="image/*"
+                class="hidden"
+                onchange="showFileName(this, 'single')"
+                required
+              />
+
+              <div class="py-8">
+                <div
+                  class="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center"
+                >
+                  <i class="fas fa-tooth text-3xl text-blue-500"></i>
+                </div>
+                <p class="text-gray-600 mb-2">Click to upload dental image</p>
+                <p class="text-gray-500 text-sm">JPG, PNG • Max 10MB</p>
+                <button
+                  type="button"
+                  class="mt-4 gradient-bg hover:opacity-90 text-white px-6 py-2 rounded-lg"
+                >
+                  Choose Image
+                </button>
+              </div>
+
+              <div
+                id="singleFileName"
+                class="mt-4 text-blue-600 font-medium hidden"
+              ></div>
+            </div>
+
+            <button
+              type="submit"
+              class="w-full gradient-bg hover:opacity-90 text-white font-bold py-3 rounded-lg text-lg"
+            >
+              <i class="fas fa-search mr-2"></i>Analyze Image
+            </button>
+          </form>
+        </div>
+
+        <!-- Batch Upload -->
+        <div id="batch-section" class="hidden">
+          <form
+            action="/predict_batch"
+            method="post"
+            enctype="multipart/form-data"
+            class="space-y-6"
+          >
+            <input
+              type="hidden"
+              id="model-type-batch"
+              name="model_type"
+              value="dental"
+            />
+
+            <div
+              class="upload-area p-8 text-center cursor-pointer"
+              onclick="document.getElementById('batchFiles').click()"
+            >
+              <input
+                type="file"
+                id="batchFiles"
+                name="files"
+                accept="image/*"
+                multiple
+                class="hidden"
+                onchange="showFileCount(this)"
+                required
+              />
+
+              <div class="py-8">
+                <div
+                  class="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center"
+                >
+                  <i class="fas fa-images text-3xl text-purple-500"></i>
+                </div>
+                <p class="text-gray-600 mb-2">
+                  Click to upload multiple images
+                </p>
+                <p class="text-gray-500 text-sm">
+                  Hold Ctrl/Cmd to select multiple files
+                </p>
+                <button
+                  type="button"
+                  class="mt-4 bg-gradient-to-r from-purple-500 to-pink-500 hover:opacity-90 text-white px-6 py-2 rounded-lg"
+                >
+                  Choose Files
+                </button>
+              </div>
+
+              <div
+                id="batchFileInfo"
+                class="mt-4 text-purple-600 font-medium hidden"
+              ></div>
+            </div>
+
+            <button
+              type="submit"
+              class="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:opacity-90 text-white font-bold py-3 rounded-lg text-lg"
+            >
+              <i class="fas fa-search mr-2"></i>Analyze All Images
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Results Section -->
+      {% if result %}
+      <div class="bg-white rounded-2xl shadow-xl p-6 mb-8">
+        <h2 class="text-2xl font-bold text-gray-800 mb-6">
+          <i class="fas fa-chart-bar mr-2"></i>Analysis Results
+          <span class="text-sm font-normal text-gray-600">
+            ({{ result.selected_model|capitalize }} Model)
+          </span>
+        </h2>
+
+        <div class="grid lg:grid-cols-3 gap-8">
+          <!-- Left Column: Image -->
+          <div class="lg:col-span-1">
+            <div
+              class="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4"
+            >
+              <h3 class="font-bold text-gray-700 mb-3">Uploaded Image</h3>
+              <div class="relative">
+                <img
+                  src="{{ image_url }}"
+                  alt="Dental scan"
+                  class="w-full rounded-lg shadow-lg"
+                />
+                <div
+                  class="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded"
+                >
+                  {{ result.upload_time }}
+                </div>
+              </div>
+              <div class="mt-3 p-3 bg-white rounded-lg">
+                <p class="text-sm text-gray-600 truncate">
+                  {{ result.filename }}
+                </p>
+                <p class="text-xs text-gray-500 mt-1">
+                  Processing: {{ result.processing_time_ms }} ms
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Middle & Right Column: Prediction -->
+          <div class="lg:col-span-2">
+            <div class="space-y-6">
+              <!-- Main Prediction Card -->
+              <div
+                class="rounded-xl p-6"
+                style="background: linear-gradient(135deg, {{ result.color }}20, {{ result.color }}40)"
+              >
+                <div
+                  class="flex flex-col md:flex-row justify-between items-center"
+                >
+                  <div>
+                    <div class="flex items-center mb-2">
+                      <span class="text-3xl mr-3">{{ result.icon }}</span>
+                      <h3 class="text-2xl font-bold capitalize">
+                        {{ result.prediction }}
+                      </h3>
+                    </div>
+                    <p class="text-gray-700">{{ result.description }}</p>
+                    {% if result.interpretation %}
+                    <p class="text-sm text-gray-600 mt-1 italic">
+                      {{ result.interpretation }}
+                    </p>
+                    {% endif %}
+                  </div>
+                  <div class="mt-4 md:mt-0">
+                    <!-- Confidence Circle -->
+                    <div class="relative w-24 h-24">
+                      <svg class="w-full h-full" viewBox="0 0 100 100">
+                        <circle
+                          cx="50"
+                          cy="50"
+                          r="45"
+                          stroke="#e5e7eb"
+                          stroke-width="8"
+                          fill="none"
+                        />
+                        <circle
+                          cx="50"
+                          cy="50"
+                          r="45"
+                          stroke="{{ result.color }}"
+                          stroke-width="8"
+                          fill="none"
+                          stroke-linecap="round"
+                          stroke-dasharray="283"
+                          stroke-dashoffset="{{ 283 - (283 * result.confidence / 100) }}"
+                          class="progress-ring"
+                        />
+                      </svg>
+                      <div
+                        class="absolute inset-0 flex items-center justify-center"
+                      >
+                        <div class="text-center">
+                          <div class="text-2xl font-bold">
+                            {{ result.confidence }}%
+                          </div>
+                          <div class="text-xs text-gray-600">Confidence</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Probability Chart -->
+              <div class="bg-white rounded-xl p-6 border border-gray-200">
+                <h4 class="font-bold text-gray-800 mb-4">
+                  Probability Distribution
+                </h4>
+                <div class="space-y-4">
+                  {% for disease, prob in result.all_probabilities.items() %}
+                  <div class="space-y-2">
+                    <div class="flex justify-between text-sm">
+                      <div class="flex items-center">
+                        <span class="font-medium capitalize"
+                          >{{ disease }}</span
+                        >
+                      </div>
+                      <span class="font-bold">
+                        {% if prob is number %} {{ "%.2f"|format(prob * 100) }}%
+                        {% else %} {{ prob }}% {% endif %}
+                      </span>
+                    </div>
+                    <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        class="h-full rounded-full chart-bar"
+                        style="width: {{ prob if prob is number else prob }}%; background-color: {{ result.color }}"
+                      ></div>
+                    </div>
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Clear Button -->
+        <div class="mt-8 text-center">
+          <button
+            onclick="clearResults()"
+            class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-2 rounded-lg transition"
+          >
+            <i class="fas fa-trash-alt mr-2"></i>Clear Results
+          </button>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Batch Results -->
+      {% if batch_results %}
+      <div class="bg-white rounded-2xl shadow-xl p-6 mb-8">
+        <h2 class="text-2xl font-bold text-gray-800 mb-6">
+          <i class="fas fa-chart-pie mr-2"></i>Batch Analysis Results
+          <span class="text-sm font-normal text-gray-600">
+            ({{ selected_model|capitalize }} Model)
+          </span>
+        </h2>
+
+        <!-- Results Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {% for item in batch_results %}
+          <div
+            class="rounded-lg p-4 shadow-md border-l-4"
+            style="border-left-color: {{ item.color if item.color else '#cbd5e1' }}; background: {{ item.color if item.color else '#f3f4f6' }}20"
+          >
+            <!-- Image -->
+            {% if item.image_url %}
+            <div class="mb-3">
+              <img
+                src="{{ item.image_url }}"
+                alt="{{ item.filename }}"
+                class="w-full h-32 object-cover rounded-lg"
+              />
+            </div>
+            {% endif %}
+
+            <!-- Result -->
+            <div class="flex justify-between items-center mb-2">
+              <div class="flex items-center">
+                <span class="text-xl mr-2"
+                  >{{ item.icon if item.icon else '📋' }}</span
+                >
+                <h4 class="font-bold capitalize">{{ item.prediction }}</h4>
+              </div>
+              <div class="text-right">
+                <div class="text-lg font-bold">{{ item.confidence }}%</div>
+              </div>
+            </div>
+
+            <!-- Info -->
+            <p class="text-sm text-gray-700 mb-1">
+              {{ item.description if item.description else '' }}
+            </p>
+            <div class="text-xs text-gray-600 truncate">
+              {{ item.filename }}
+            </div>
+            <div class="text-xs text-gray-500 mt-1">
+              <i class="far fa-clock mr-1"></i>{{ item.upload_time }}
+            </div>
+
+            {% if item.error %}
+            <div class="mt-2 text-xs text-red-700">
+              <i class="fas fa-exclamation-circle mr-1"></i>{{ item.error }}
+            </div>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+
+        <!-- Clear Button -->
+        <div class="mt-8 text-center">
+          <button
+            onclick="clearResults()"
+            class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-2 rounded-lg"
+          >
+            <i class="fas fa-trash-alt mr-2"></i>Clear All Results
+          </button>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Error Display -->
+      {% if error %}
+      <div
+        class="bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-xl p-6 mb-8"
+      >
+        <div class="flex items-center">
+          <div class="bg-red-100 p-3 rounded-full mr-4">
+            <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
+          </div>
+          <div>
+            <h3 class="text-lg font-bold text-red-800">Error</h3>
+            <p class="text-red-700 mt-1">{{ error }}</p>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Information Panel -->
+      <div
+        class="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-6"
+      >
+        <div class="grid md:grid-cols-2 gap-8">
+          <div>
+            <h3 class="text-xl font-bold text-blue-800 mb-4">
+              <i class="fas fa-info-circle mr-2"></i>About This System
+            </h3>
+            <p class="text-gray-700 mb-4">
+              This AI system provides two specialized models for comprehensive
+              dental analysis:
+            </p>
+
+            <div class="bg-white/50 rounded-lg p-4 mb-3">
+              <h4 class="font-bold text-gray-700 mb-2">
+                🦷 Teeth Disease Model
+              </h4>
+              <p class="text-sm text-gray-600">
+                Detects 4 conditions: caries, calculus, healthy teeth, and
+                discoloration using ResNet50 architecture.
+              </p>
+            </div>
+
+            <div class="bg-white/50 rounded-lg p-4">
+              <h4 class="font-bold text-gray-700 mb-2">🩺 Gum Disease Model</h4>
+              <p class="text-sm text-gray-600">
+                Binary classification for gingivitis detection focusing on gum
+                health.
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <div class="bg-white/50 rounded-lg p-4 mb-4">
+              <h4 class="font-bold text-gray-700 mb-2">📁 How to Use:</h4>
+              <ol
+                class="list-decimal list-inside text-sm text-gray-600 space-y-1"
+              >
+                <li>Select analysis type (Teeth or Gum)</li>
+                <li>Upload clear dental images</li>
+                <li>AI analyzes images instantly</li>
+                <li>View detailed results with confidence scores</li>
+                <li>Multiple images can be analyzed together</li>
+              </ol>
+            </div>
+
+            <div class="bg-white/50 rounded-lg p-4 mb-4">
+              <h4 class="font-bold text-gray-700 mb-2">
+                ⚕️ Medical Disclaimer
+              </h4>
+              <p class="text-gray-600 text-sm">
+                This tool is for educational and screening purposes only. Always
+                consult with a qualified dental professional for diagnosis and
+                treatment.
+              </p>
+            </div>
+
+            <div
+              class="bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg p-4"
+            >
+              <div class="flex justify-between items-center">
+                <div>
+                  <h4 class="font-bold">System Status</h4>
+                  <p class="text-sm opacity-90">
+                    Dental: {{ "✅ Loaded" if dental_model_loaded else "⚠️ Test
+                    Mode" }}<br />
+                    Gum: {{ "✅ Loaded" if gingivitis_model_loaded else "⚠️ Test
+                    Mode" }}
+                  </p>
+                </div>
+                <div class="text-right">
+                  <div class="text-2xl font-bold">2</div>
+                  <div class="text-sm opacity-90">AI Models</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer
+      class="mt-12 bg-gradient-to-r from-gray-800 to-gray-900 text-white py-8"
+    >
+      <div class="container mx-auto px-4">
+        <div class="flex flex-col md:flex-row justify-between items-center">
+          <div class="mb-4 md:mb-0">
+            <h3 class="text-xl font-bold mb-2">
+              Dental & Gum Disease Classifier
+            </h3>
+            <p class="text-gray-400">Dual AI-powered dental health screening</p>
+          </div>
+          <div class="text-center md:text-right">
+            <p class="text-gray-400">
+              Teeth: ResNet50 (4 classes) • Gum: Binary (2 classes)
+            </p>
+            <p class="text-gray-500 text-sm mt-1">
+              Version 2.0 • Optimized for CPU
+            </p>
+          </div>
+        </div>
+        <div
+          class="border-t border-gray-700 mt-6 pt-6 text-center text-gray-400 text-sm"
+        >
+          <p>
+            © 2024 Dental AI Research Project. For educational and research
+            purposes.
+          </p>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      let currentModel = 'dental';
+
+      // Select model
+      function selectModel(model) {
+          currentModel = model;
+
+          // Update selectors
+          const dentalSelector = document.getElementById('dental-selector');
+          const gingivitisSelector = document.getElementById('gingivitis-selector');
+
+          if (model === 'dental') {
+              dentalSelector.classList.add('selected');
+              gingivitisSelector.classList.remove('selected');
+              document.getElementById('current-model-display').textContent = 'Teeth Disease (4 classes)';
+          } else {
+              gingivitisSelector.classList.add('selected');
+              dentalSelector.classList.remove('selected');
+              document.getElementById('current-model-display').textContent = 'Gum Disease (2 classes)';
+          }
+
+          // Update hidden form fields
+          document.getElementById('model-type-single').value = model;
+          document.getElementById('model-type-batch').value = model;
+      }
+
+      // Switch tabs
+      function switchTab(tab) {
+          const singleSection = document.getElementById('single-section');
+          const batchSection = document.getElementById('batch-section');
+          const singleTab = document.getElementById('single-tab');
+          const batchTab = document.getElementById('batch-tab');
+
+          if (tab === 'single') {
+              singleSection.classList.remove('hidden');
+              batchSection.classList.add('hidden');
+              singleTab.classList.add('border-blue-500', 'text-blue-600');
+              singleTab.classList.remove('border-transparent', 'text-gray-500');
+              batchTab.classList.add('border-transparent', 'text-gray-500');
+              batchTab.classList.remove('border-blue-500', 'text-blue-600');
+          } else {
+              singleSection.classList.add('hidden');
+              batchSection.classList.remove('hidden');
+              batchTab.classList.add('border-blue-500', 'text-blue-600');
+              batchTab.classList.remove('border-transparent', 'text-gray-500');
+              singleTab.classList.add('border-transparent', 'text-gray-500');
+              singleTab.classList.remove('border-blue-500', 'text-blue-600');
+          }
+      }
+
+      // Show file name
+      function showFileName(input, type) {
+          const fileNameDiv = type === 'single' ?
+              document.getElementById('singleFileName') :
+              document.getElementById('batchFileInfo');
+
+          if (input.files.length > 0) {
+              if (type === 'single') {
+                  fileNameDiv.textContent = `Selected: ${input.files[0].name}`;
+              }
+              fileNameDiv.classList.remove('hidden');
+          }
+      }
+
+      // Show file count
+      function showFileCount(input) {
+          const fileInfoDiv = document.getElementById('batchFileInfo');
+          if (input.files.length > 0) {
+              fileInfoDiv.textContent = `${input.files.length} file(s) selected`;
+              fileInfoDiv.classList.remove('hidden');
+          }
+      }
+
+      // Clear results
+      function clearResults() {
+          window.location.href = '/';
+      }
+
+      // Animate chart bars
+      function animateBars() {
+          const bars = document.querySelectorAll('.chart-bar');
+          bars.forEach(bar => {
+              const width = bar.style.width;
+              bar.style.width = '0';
+              setTimeout(() => {
+                  bar.style.width = width;
+              }, 100);
+          });
+      }
+
+      // Initialize
+      document.addEventListener('DOMContentLoaded', function() {
+          // Auto-switch to batch tab if batch results
+          {% if batch_results %}
+          switchTab('batch');
+          {% endif %}
+
+          // Animate bars if results exist
+          {% if result %}
+          setTimeout(animateBars, 300);
+          {% endif %}
+      });
+    </script>
+  </body>
+</html>
