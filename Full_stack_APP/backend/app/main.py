@@ -9,6 +9,7 @@ from fastapi import FastAPI, File, UploadFile, Request, Form
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi.middleware.cors import CORSMiddleware
 
 # Import model loaders
 from services.model_loader import DentalDiseasePredictor, GingivitisPredictor
@@ -18,6 +19,15 @@ app = FastAPI(
     title="Dental & Gum Disease Classifier",
     description="AI-powered detection for dental diseases and gingivitis",
     version="2.0.0"
+)
+
+# Add CORS middleware for React frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"],  # Vite default ports
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Create necessary directories
@@ -48,6 +58,138 @@ async def startup_event():
     print(f"   Gingivitis classes: {', '.join(gingivitis_predictor.class_names)}")
     print("\n✅ System ready! Access at: http://localhost:8000")
     print("=" * 60)
+
+# API endpoint to get model info
+@app.get("/api/models")
+async def get_models():
+    """Get information about available models"""
+    dental_class_info = [dental_predictor.get_class_info(c) for c in dental_predictor.class_names]
+    gingivitis_class_info = [gingivitis_predictor.get_class_info(c) for c in gingivitis_predictor.class_names]
+    
+    return JSONResponse({
+        "dental": {
+            "loaded": dental_predictor.is_loaded,
+            "classes": dental_class_info,
+            "name": "Teeth Disease Detection",
+            "description": "4-class detection for dental conditions"
+        },
+        "gingivitis": {
+            "loaded": gingivitis_predictor.is_loaded,
+            "classes": gingivitis_class_info,
+            "name": "Gum Disease Detection",
+            "description": "Binary classification for gingivitis"
+        }
+    })
+
+# API endpoint for single prediction
+@app.post("/api/predict")
+async def predict_api(
+    file: UploadFile = File(...),
+    model_type: str = Form(...)
+):
+    """API endpoint for single image prediction"""
+    try:
+        # Validate file type
+        allowed_types = ['image/jpeg', 'image/png', 'image/jpg']
+        if file.content_type not in allowed_types:
+            return JSONResponse(
+                status_code=400,
+                content={"error": f"Invalid file type. Use: {', '.join(allowed_types)}"}
+            )
+        
+        # Save file
+        filename = f"{uuid.uuid4().hex[:8]}_{file.filename}"
+        file_path = UPLOAD_DIR / filename
+        
+        async with aiofiles.open(file_path, 'wb') as buffer:
+            content = await file.read()
+            if len(content) > 10 * 1024 * 1024:  # 10MB limit
+                return JSONResponse(
+                    status_code=400,
+                    content={"error": "File too large (max 10MB)"}
+                )
+            await buffer.write(content)
+        
+        # Select predictor based on model_type
+        if model_type == "dental":
+            result = dental_predictor.predict(str(file_path))
+        elif model_type == "gingivitis":
+            result = gingivitis_predictor.predict(str(file_path))
+        else:
+            return JSONResponse(
+                status_code=400,
+                content={"error": "Invalid model type selected"}
+            )
+        
+        # Add display info
+        result["image_url"] = f"http://localhost:8000/static/uploads/{filename}"
+        result["filename"] = file.filename
+        result["upload_time"] = datetime.now().strftime("%H:%M:%S")
+        result["selected_model"] = model_type
+        
+        return JSONResponse(result)
+        
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Error: {str(e)}"}
+        )
+
+# API endpoint for batch prediction
+@app.post("/api/predict_batch")
+async def predict_batch_api(
+    files: List[UploadFile] = File(...),
+    model_type: str = Form(...)
+):
+    """API endpoint for batch image prediction"""
+    if not files:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "No files uploaded"}
+        )
+    
+    # Select predictor
+    if model_type == "dental":
+        predictor = dental_predictor
+    elif model_type == "gingivitis":
+        predictor = gingivitis_predictor
+    else:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Invalid model type selected"}
+        )
+    
+    results = []
+    for file in files:
+        if file.content_type.startswith("image/"):
+            try:
+                # Save file
+                filename = f"{uuid.uuid4().hex[:8]}_{file.filename}"
+                file_path = UPLOAD_DIR / filename
+                
+                async with aiofiles.open(file_path, 'wb') as buffer:
+                    content = await file.read()
+                    await buffer.write(content)
+                
+                # Predict
+                result = predictor.predict(str(file_path))
+                
+                # Add display info
+                result["image_url"] = f"http://localhost:8000/static/uploads/{filename}"
+                result["filename"] = file.filename
+                result["upload_time"] = datetime.now().strftime("%H:%M:%S")
+                
+                results.append(result)
+                
+            except Exception as e:
+                results.append({
+                    "filename": file.filename,
+                    "error": str(e),
+                    "prediction": "Error",
+                    "confidence": 0.0
+                })
+    
+    return JSONResponse({"results": results, "model_type": model_type})
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):

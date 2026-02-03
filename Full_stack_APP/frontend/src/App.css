@@ -1,1 +1,73 @@
-@import "tailwindcss";
+/* Custom Gradients */
+.gradient-bg {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.dental-gradient {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.gingivitis-gradient {
+  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+}
+
+.caries-bg {
+  background: linear-gradient(135deg, #ff6b6b20, #ff6b6b40);
+}
+
+.calculus-bg {
+  background: linear-gradient(135deg, #ffa50020, #ffa50040);
+}
+
+.healthy-bg {
+  background: linear-gradient(135deg, #51cf6620, #51cf6640);
+}
+
+.discoloration-bg {
+  background: linear-gradient(135deg, #4ecdc420, #4ecdc440);
+}
+
+/*  Upload Area */
+.upload-area {
+  border: 2px dashed #cbd5e1;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.upload-area:hover {
+  border-color: #667eea;
+  background-color: #f8fafc;
+}
+
+/* Model Selector */
+.model-selector {
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.model-selector:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+}
+
+.model-selector.selected {
+  border: 3px solid #667eea;
+  box-shadow: 0 0 20px rgba(102, 126, 234, 0.3);
+}
+
+/* Progress Ring */
+.progress-ring {
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+}
+
+/* Chart Bar Animation */
+.chart-bar {
+  transition: width 0.5s ease-in-out;
+}
+
+/* Disease Card */
+.disease-card {
+  transition: all 0.3s ease;
+  border-left: 4px solid;
+}
