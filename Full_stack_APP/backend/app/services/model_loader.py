@@ -2,7 +2,7 @@ import os
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
-from PIL import Image
+from PIL import Image, ImageEnhance
 import time
 from pathlib import Path
 from typing import Dict, Any, List
@@ -13,7 +13,7 @@ tf.get_logger().setLevel('ERROR')
 
 
 class DentalDiseasePredictor:
-    """Predictor for 4-class dental disease classification"""
+    """Predictor for 4-class dental disease classification with Test-Time Augmentation"""
     
     def __init__(self):
         self.model = None
@@ -45,18 +45,22 @@ class DentalDiseasePredictor:
         # Try to load model
         model_path = Path(__file__).parent.parent / "models" / "DENTAL_MODEL_BEST.keras"
         
+        print(f"🔍 Searching for model at: {model_path.absolute()}")
+        
         if model_path.exists():
             try:
                 print(f"🔄 Loading dental disease model from: {model_path}")
                 self.load_model(str(model_path))
             except Exception as e:
-                print(f"❌ Error loading dental model: {e}")
-                print("⚠️ Creating lightweight model for testing...")
-                self._create_lightweight_model()
+                print(f"❌ CRITICAL ERROR loading dental model: {e}")
+                # RAISE ERROR instead of using dummy model to avoid confusing the user
+                raise Exception(f"Failed to load dental model: {e}")
         else:
-            print(f"⚠️ Dental model not found at: {model_path}")
-            print("⚠️ Creating lightweight model for testing...")
-            self._create_lightweight_model()
+            print(f"❌ Model file MISSING at: {model_path}")
+            print("Please place 'DENTAL_MODEL_BEST.keras' in 'backend/app/models/'")
+            # Create a placeholder that strictly returns errors, not random predictions
+            self.model = None
+            self.is_loaded = False
     
     def load_model(self, model_path: str):
         try:
@@ -105,24 +109,49 @@ class DentalDiseasePredictor:
         self.is_loaded = False
         print("✅ Lightweight dental model created")
     
-    def preprocess_image(self, image_path: str) -> np.ndarray:
+    def preprocess_image(self, image_path: str):
+        """
+        Preprocess image for prediction.
+        MATCHING COLAB PIPELINE EXACTLY:
+        1. Open image
+        2. Convert to array
+        3. Convert to Tensor
+        4. tf.image.resize (Critical difference from PIL resize)
+        5. resnet.preprocess_input
+        """
         try:
+            # 1. Open image
             img = Image.open(image_path)
-            
             if img.mode != 'RGB':
                 img = img.convert('RGB')
             
-            img = img.resize(self.img_size)
-            img_array = np.array(img, dtype=np.float32)
-            img_array = tf.keras.applications.resnet.preprocess_input(img_array)
-            img_array = np.expand_dims(img_array, axis=0)
+            # 2. Convert to array
+            img_array = np.array(img)
             
-            return img_array
+            # 3. Convert to Tensor
+            image_tensor = tf.convert_to_tensor(img_array, dtype=tf.float32)
+            
+            # 4. Resize using TensorFlow (Matches Colab's tf.image.resize)
+            # Colab: image_tensor = tf.image.resize(image_tensor, [224, 224])
+            image_tensor = tf.image.resize(image_tensor, self.img_size)
+            
+            # 5. Preprocess
+            # Colab: image_tensor = tf.keras.applications.resnet.preprocess_input(image_tensor)
+            image_tensor = tf.keras.applications.resnet.preprocess_input(image_tensor)
+            
+            # 6. Expand dims (Add batch dimension)
+            # Colab: image_tensor = tf.expand_dims(image_tensor, axis=0)
+            image_tensor = tf.expand_dims(image_tensor, axis=0)
+            
+            return image_tensor
             
         except Exception as e:
             raise Exception(f"Error preprocessing image: {str(e)}")
     
     def predict(self, image_path: str) -> Dict[str, Any]:
+        """
+        Make prediction matching Colab exactly (No TTA).
+        """
         start_time = time.time()
         
         try:
@@ -133,8 +162,16 @@ class DentalDiseasePredictor:
             if file_size > 10:
                 return self._error_result("Image too large (max 10MB)")
             
+            # Get preprocessed tensor (includes batch dim)
             processed_image = self.preprocess_image(image_path)
-            predictions = self.model.predict(processed_image, verbose=0, batch_size=1)
+            
+            # Predict
+            predictions = self.model.predict(processed_image, verbose=0)
+            
+            # Get final result (Colab logic)
+            # prediction = model.predict(image_tensor, verbose=0)
+            # class_idx = np.argmax(prediction[0])
+            # confidence = np.max(prediction[0])
             
             predicted_idx = np.argmax(predictions[0])
             predicted_class = self.class_names[predicted_idx]
@@ -159,13 +196,47 @@ class DentalDiseasePredictor:
                 "processing_time_ms": round(processing_time, 2),
                 "model_loaded": self.is_loaded,
                 "model_type": "dental",
-                "error": None
+                "error": None,
+                "interpretation": self._get_interpretation(confidence)
             }
             
             return result
             
         except Exception as e:
             return self._error_result(str(e))
+            
+            sorted_probs = dict(sorted(all_probabilities.items(), key=lambda x: x[1], reverse=True))
+            processing_time = (time.time() - start_time) * 1000
+            
+            result = {
+                "prediction": predicted_class,
+                "confidence": round(confidence * 100, 2),
+                "all_probabilities": sorted_probs,
+                "top_probabilities": list(sorted_probs.items())[:3],
+                "icon": self.class_icons[predicted_class],
+                "color": self.class_colors[predicted_class],
+                "description": self.class_descriptions[predicted_class],
+                "processing_time_ms": round(processing_time, 2),
+                "model_loaded": self.is_loaded,
+                "model_type": "dental",
+                "error": None,
+                "interpretation": self._get_interpretation(confidence)
+            }
+            
+            return result
+            
+        except Exception as e:
+            return self._error_result(str(e))
+    
+    def _get_interpretation(self, confidence: float) -> str:
+        if confidence > 0.90:
+            return "Strong detection confidence."
+        elif confidence > 0.70:
+            return "Moderate detection confidence."
+        elif confidence > 0.50:
+            return "Low confidence - result may be uncertain."
+        else:
+            return "Very low confidence - Clinical review recommended."
     
     def _error_result(self, error_msg: str) -> Dict[str, Any]:
         return {
